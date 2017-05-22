@@ -100,8 +100,8 @@ def load_dataset(filename):
     X_train, y_train = data[0]
     X_test, y_test = data[1]
 
-    print(" ..from file {}".format(filename))
-    print(" ..reading instances: train {0}, test {1}".format(X_train.shape, X_test.shape))
+    print (" ..from file {}".format(filename))
+    print (" ..reading instances: train {0}, test {1}".format(X_train.shape, X_test.shape))
 
     X_train = X_train.astype(np.float32)
     X_test = X_test.astype(np.float32)
@@ -112,7 +112,7 @@ def load_dataset(filename):
 
     return X_train, y_train, X_test, y_test
 
-print("Loading data...")
+print ("Loading data...")
 X_train, y_train, X_test, y_test = load_dataset('data/oppChallenge_gestures.data')
 
 assert (NB_SENSOR_CHANNELS_WITH_FILTERING == X_train.shape[1] or NB_SENSOR_CHANNELS == X_train.shape[1])
@@ -148,9 +148,9 @@ trial_name = "{}x{}".format(n_layers_in_highway, n_stacked_layers)
 
 for learning_rate in [0.001]:
     for lambda_loss_amount in [0.005]:
-        print "learning_rate: {}".format(learning_rate)
-        print "lambda_loss_amount: {}".format(lambda_loss_amount)
-        print ""
+        print ("learning_rate: {}".format(learning_rate))
+        print ("lambda_loss_amount: {}".format(lambda_loss_amount))
+        print ("")
 
         class EditedConfig(Config):
             def __init__(self, X, Y):
@@ -170,6 +170,6 @@ for learning_rate in [0.001]:
             f.write("""str(learning_rate)+' \t'+str(lambda_loss_amount)+' \t'+str(accuracy_out)+' \t'+str(best_accuracy)+' \t'+str(f1_score_out)+' \t'+str(best_f1_score)\n""")
             f.write(   str(learning_rate)+' \t'+str(lambda_loss_amount)+' \t'+str(accuracy_out)+' \t'+str(best_accuracy)+' \t'+str(f1_score_out)+' \t'+str(best_f1_score)+'\n\n' )
 
-        print "________________________________________________________"
-    print ""
-print "Done."
+        print ("________________________________________________________")
+    print ("")
+print ("Done.")

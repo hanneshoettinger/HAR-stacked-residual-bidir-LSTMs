@@ -101,8 +101,8 @@ def single_LSTM_cell(input_hidden_tensor, n_outputs):
                      shape: time_steps*[batch_size,n_outputs]
     """
     with tf.variable_scope("lstm_cell"):
-        lstm_cell = tf.nn.rnn_cell.BasicLSTMCell(n_outputs, state_is_tuple=True, forget_bias=0.999)
-        outputs, _ = tf.nn.rnn(lstm_cell, input_hidden_tensor, dtype=tf.float32)
+        lstm_cell = tf.contrib.rnn.BasicLSTMCell(n_outputs, state_is_tuple=True, forget_bias=0.999)
+        outputs, _ = tf.contrib.rnn.static_rnn(lstm_cell, input_hidden_tensor, dtype=tf.float32)
     return outputs
 
 
@@ -118,7 +118,7 @@ def bi_LSTM_cell(input_hidden_tensor, n_inputs, n_outputs, config):
     """
     n_outputs = int(n_outputs/2)
 
-    print "bidir:"
+    print ("bidir:")
 
     with tf.variable_scope('pass_forward') as scope2:
         hidden_forward = relu_fc(input_hidden_tensor, n_inputs, n_outputs, config)
@@ -136,7 +136,7 @@ def bi_LSTM_cell(input_hidden_tensor, n_inputs, n_outputs, config):
         # dimension, like if the two cells acted as one cell
         # with twice the n_hidden size:
         layer_hidden_outputs = [
-            tf.concat(len(f.get_shape()) - 1, [f, b])
+            tf.concat(axis=len(f.get_shape()) - 1, values=[f, b])
                 for f, b in zip(forward, backward)]
 
     return layer_hidden_outputs
@@ -194,31 +194,31 @@ def LSTM_network(feature_mat, config, keep_prob_for_dropout):
 
         # Exchange dim 1 and dim 0
         feature_mat = tf.transpose(feature_mat, [1, 0, 2])
-        print feature_mat.get_shape()
+        print (feature_mat.get_shape())
         # New feature_mat's shape: [time_steps, batch_size, n_inputs]
 
         # Temporarily crush the feature_mat's dimensions
         feature_mat = tf.reshape(feature_mat, [-1, config.n_inputs])
-        print feature_mat.get_shape()
+        print (feature_mat.get_shape())
         # New feature_mat's shape: [time_steps*batch_size, n_inputs]
 
         # Split the series because the rnn cell needs time_steps features, each of shape:
-        hidden = tf.split(0, config.n_steps, feature_mat)
+        hidden = tf.split(axis=0, num_or_size_splits=config.n_steps, value=feature_mat)
         print (len(hidden), str(hidden[0].get_shape()))
         # New shape: a list of lenght "time_step" containing tensors of shape [batch_size, n_hidden]
 
         # Stacking LSTM cells, at least one is stacked:
-        print "\nCreating hidden #1:"
+        print ("\nCreating hidden #1:")
         hidden = residual_bidirectional_LSTM_layers(hidden, config.n_inputs, config.n_hidden, 1, config, keep_prob_for_dropout)
         print (len(hidden), str(hidden[0].get_shape()))
 
         for stacked_hidden_index in range(config.n_stacked_layers - 1):
             # If the config permits it, we stack more lstm cells:
-            print "\nCreating hidden #{}:".format(stacked_hidden_index+2)
+            print ("\nCreating hidden #{}:".format(stacked_hidden_index+2))
             hidden = residual_bidirectional_LSTM_layers(hidden, config.n_hidden, config.n_hidden, stacked_hidden_index+2, config, keep_prob_for_dropout)
             print (len(hidden), str(hidden[0].get_shape()))
 
-        print ""
+        print ("")
 
         # Final fully-connected activation logits
         # Get the last output tensor of the inner loop output series, of shape [batch_size, n_classes]
@@ -237,11 +237,12 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
     # Define parameters for model
     #-----------------------------------
     config = Config(X_train, X_test)
-    print("Some useful info to get an insight on dataset's shape and normalisation:")
-    print("features shape, labels shape, each features mean, each features standard deviation")
-    print(X_test.shape, y_test.shape,
-          np.mean(X_test), np.std(X_test))
-    print("the dataset is therefore properly normalised, as expected.")
+    config = Config(X_train, X_test)
+    print ("Some useful info to get an insight on dataset's shape and normalisation:")
+    print ("features shape, labels shape, each features mean, each features standard deviation")
+    print (X_test.shape, y_test.shape,
+           np.mean(X_test), np.std(X_test))
+    print ("the dataset is therefore properly normalised, as expected.")
 
     #------------------------------------------------------
     # Let's get serious and build the neural network
@@ -270,9 +271,9 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
         # Loss, optimizer, evaluation
 
         # Softmax loss with L2 and L1 layer-wise regularisation
-        print "Unregularised variables:"
+        print ("Unregularised variables:")
         for unreg in [tf_var.name for tf_var in tf.trainable_variables() if ("noreg" in tf_var.name or "Bias" in tf_var.name)]:
-            print unreg
+            print (unreg)
         l2 = config.lambda_loss_amount * sum(
             tf.nn.l2_loss(tf_var)
                 for tf_var in tf.trainable_variables()
@@ -281,7 +282,7 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
         # first_weights = [w for w in tf.all_variables() if w.name == 'LSTM_network/layer_1/pass_forward/relu_fc_weights:0'][0]
         # l1 = config.lambda_loss_amount * tf.reduce_mean(tf.abs(first_weights))
         loss = tf.reduce_mean(
-            tf.nn.softmax_cross_entropy_with_logits(pred_y, Y)) + l2  # + l1
+            tf.nn.softmax_cross_entropy_with_logits(logits=pred_y, labels=Y)) + l2  # + l1
 
         # Gradient clipping Adam optimizer with gradient noise
         optimize = tf.contrib.layers.optimize_loss(
@@ -303,7 +304,7 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
 
     sessconfig = tf.ConfigProto(log_device_placement=False)
     with tf.Session(config=sessconfig) as sess:
-        tf.initialize_all_variables().run()
+        tf.global_variables_initializer().run()
 
         best_accuracy = (0.0, "iter: -1")
         best_f1_score = (0.0, "iter: -1")
@@ -380,12 +381,12 @@ def run_with_config(Config, X_train, y_train, X_test, y_test):
             best_accuracy = max(best_accuracy, (accuracy_out, "iter: {}".format(i)))
             best_f1_score = max(best_f1_score, (f1_score_out, "iter: {}".format(i)))
 
-        print("")
-        print("final test accuracy: {}".format(accuracy_out))
-        print("best epoch's test accuracy: {}".format(best_accuracy))
-        print("final F1 score: {}".format(f1_score_out))
-        print("best epoch's F1 score: {}".format(best_f1_score))
-        print("")
+        print ("")
+        print ("final test accuracy: {}".format(accuracy_out))
+        print ("best epoch's test accuracy: {}".format(best_accuracy))
+        print ("final F1 score: {}".format(f1_score_out))
+        print ("best epoch's F1 score: {}".format(best_f1_score))
+        print ("")
 
     # returning both final and bests accuracies and f1 scores.
     return accuracy_out, best_accuracy, f1_score_out, best_f1_score
